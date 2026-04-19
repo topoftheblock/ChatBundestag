@@ -1,108 +1,156 @@
-A Java-based application for parsing XML parliamentary protocols from the German Bundestag, transforming them into a graph structure, and analyzing them using an embedded Neo4j database.
+# Parliamentary Protocol Parser & AI Assistant
+
+> A Java application for parsing XML protocols from the German Bundestag, loading them into a Neo4j graph database, and enabling natural-language querying via an AI-powered RAG pipeline.
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Execution Workflow](#execution-workflow)
+- [Statistical Analyses](#statistical-analyses)
+- [AI Assistant (RAG)](#ai-assistant-rag)
+- [Known Data Issues](#known-data-issues)
+- [Processing Statistics](#processing-statistics)
+
+---
 
 ## Overview
 
-This project processes 214 XML protocol files from parliamentary sessions, extracts structured information about sessions, speakers, speeches, and comments, and loads them into a Neo4j graph database for advanced analysis. The application automatically performs statistical analyses on speech patterns, comment frequencies, and session durations.
+This project processes **214 XML protocol files** from German Bundestag parliamentary sessions. It extracts structured information about sessions, speakers, speeches, and interjections, loads everything into an embedded Neo4j graph database, and provides automated statistical analysis. A conversational AI assistant powered by LangChain4j and OpenAI allows natural-language querying of the ingested data.
 
-**Disclaimer**: The code contains comments indicating where each assignment subquestion is solved.
+> **Note:** Code comments indicate where each assignment sub-question is solved.
+
+---
 
 ## Key Features
 
-- **Robust XML Parsing**: DOM-based parser with duplicate detection and error handling
-- **Graph Database Integration**: Embedded Neo4j database with optimized batch loading
-- **Statistical Analysis**: Automated Cypher queries for speech and session analytics
-- **High Performance**: Batch operations using `UNWIND` and `MERGE` for idempotent data loading
+| Feature | Description |
+|---|---|
+| **Robust XML Parsing** | DOM-based parser with duplicate detection and error handling |
+| **Graph Database Integration** | Embedded Neo4j with optimized batch loading via `UNWIND` and `MERGE` |
+| **AI Parliamentary Assistant** | RAG pipeline for natural-language questions over speech data |
+| **Statistical Analysis** | Automated Cypher queries for speech patterns and comment frequencies |
+| **High Performance** | Batch operations ensure idempotent, atomic data loading |
 
-## Project Architecture
+---
+
+## Architecture
 
 ### Design Patterns
 
-#### Interface-Driven Design
+**Interface-Driven Design**
 All core components (`Sitzung`, `Rede`, `Redner`, `DatabaseConnection`) are defined by interfaces, decoupling application logic from specific implementations.
 
-#### Factory & Singleton Pattern
-The `AppFactory` class serves as a Singleton for accessing core services like `XMLParser` and creating `DatabaseConnection` instances.
+**Factory & Singleton Pattern**
+`AppFactory` serves as a singleton for accessing core services such as `XMLParser` and creating `DatabaseConnection` instances.
 
-#### Model-to-Node Mapping
-Each model class includes a `toNode()` method, making classes responsible for their own database representation.
+**Model-to-Node Mapping**
+Each model class exposes a `toNode()` method, making it responsible for its own database representation.
 
 ### Efficient Batch Loading
+
 Data is loaded in batches using Neo4j's `UNWIND` and `MERGE` commands, ensuring:
-- High performance
-- Data idempotency (no duplicates)
+- High throughput
+- Data idempotency (no duplicates on re-runs)
 - Atomic operations
+
+---
 
 ## Project Structure
 
 ```
 org.texttechnologylab.ppr/
-├── Main.java                    # Application entry point
-├── AppFactory.java              # Singleton factory for services
+├── Main.java                      # Application entry point
+├── AppFactory.java                # Singleton factory for services
 ├── parser/
-│   └── XMLParser.java           # DOM-based XML parser with caching
+│   └── XMLParser.java             # DOM-based XML parser with caching
 ├── model/
-│   ├── interfaces/              # Data model contracts
+│   ├── interfaces/                # Data model contracts
 │   │   ├── Sitzung.java
 │   │   ├── Rede.java
 │   │   ├── Redner.java
 │   │   ├── Abgeordneter.java
 │   │   └── Kommentar.java
-│   └── *.Impl.java              # Concrete implementations
+│   └── *.Impl.java                # Concrete implementations
 └── db/
-    ├── DatabaseConnection.java   # Database operation interface
-    └── Neo4jConnection.java      # Neo4j-specific implementation
+    ├── DatabaseConnection.java    # Database operation interface
+    └── Neo4jConnection.java       # Neo4j-specific implementation
 ```
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
 - **Java 21** (JDK)
-- **Apache Maven** (for dependency management)
-- **Neo4j 5.13.0** (included as Maven dependency)
+- **Apache Maven**
+- **Neo4j 5.13.0** (included as a Maven dependency — no separate installation required)
+
+### Build & Run
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd <project-directory>
+
+# Build with Maven
+mvn clean package
+
+# Run the application
+mvn exec:java -Dexec.mainClass="org.texttechnologylab.ppr.Main"
+```
+
+XML protocol files should be placed in `src/main/resources/`. The embedded Neo4j database is created automatically at `target/neo4j-db`.
+
+---
 
 ## Execution Workflow
 
-The application executes the following pipeline:
+The application runs the following pipeline on startup:
 
-1.  Find Files: Scans `src/main/resources/` for `.xml` files
-2.  Parse XMLs: Transforms XML into Java object models (Sitzung, Rede, Redner, etc.)
-   - Implements intelligent `rednerCache` to avoid duplicate speaker objects
-   - Detects and skips duplicate sessions
-3.  Start Database: Initializes embedded Neo4j at `target/neo4j-db`
-4.  Clear Database: Runs `MATCH (n) DETACH DELETE n` to remove old data
-5.  Create Constraints: Applies UNIQUE constraints on Sitzung, Redner, and Rede nodes
-6.  Load Nodes**:
-   - `ladeSitzungen()` - Loads all parliamentary sessions
-   - `ladeRedner()` - Loads speakers and sets `:Abgeordneter` labels
-   - `ladeRedenUndKommentare()` - Loads speeches and comments
-7.  Create Relationships: Establishes `[:HAT_GESPROCHEN]`, `[:GEHALTEN_IN]`, and `[:BEINHALTET]` connections
-8.  Run Statistics: Executes analytical queries and prints results
-9.  Shutdown: Safely closes the embedded Neo4j database
+1. **Find Files** — Scans `src/main/resources/` for `.xml` files
+2. **Parse XMLs** — Transforms XML into Java model objects (`Sitzung`, `Rede`, `Redner`, etc.)
+    - Uses a `rednerCache` to deduplicate speaker objects
+    - Detects and skips duplicate sessions
+3. **Start Database** — Initializes the embedded Neo4j instance at `target/neo4j-db`
+4. **Clear Database** — Runs `MATCH (n) DETACH DELETE n` to remove stale data
+5. **Create Constraints** — Applies `UNIQUE` constraints on `Sitzung`, `Redner`, and `Rede` nodes
+6. **Load Nodes**
+    - `ladeSitzungen()` — Parliamentary sessions
+    - `ladeRedner()` — Speakers with `:Abgeordneter` labels
+    - `ladeRedenUndKommentare()` — Speeches and associated comments
+7. **Create Relationships** — Establishes `[:HAT_GESPROCHEN]`, `[:GEHALTEN_IN]`, and `[:BEINHALTET]` edges
+8. **Run Statistics** — Executes analytical Cypher queries and prints results
+9. **Shutdown** — Safely closes the embedded database
+
+---
 
 ## Statistical Analyses
-**Disclaimer**: Party-level statistics only include Abgeordnete (parliament members with official party affiliation in the XML). Politicians marked as "Keine Fraktion" are excluded from party aggregations.These excluded politicians still appear in individual speaker statistics (like Markus Söder, Eva Högl, etc.)
 
-The application automatically performs and displays:
+> **Note:** Party-level statistics include only *Abgeordnete* (parliament members with official party affiliation in the XML). Politicians marked as `"Keine Fraktion"` are excluded from party aggregations but still appear in individual speaker statistics.
 
 ### (4a) Average Speech Length (in characters)
-- **Per Representative** (Top 10)
-- **Per Party**
 
-Example output:
+Calculated per representative (Top 10) and per party.
+
 ```
 Pro Redner (Top 10):
-| vorname   | nachname   | Partei         | avgLaenge |
-|-----------|------------|----------------|-----------|
-| Markus    | Söder      | Keine Fraktion | 10850,00  |
-| Friedrich | Merz       | CDU/CSU        | 10593,62  |
+| vorname   | nachname | Partei         | avgLaenge |
+|-----------|----------|----------------|-----------|
+| Markus    | Söder    | Keine Fraktion | 10850,00  |
+| Friedrich | Merz     | CDU/CSU        | 10593,62  |
 ```
 
 ### (4b) Average Comment Frequency (per speech)
-- **Per Representative** (Top 10)
-- **Per Party**
 
-Example output:
+Calculated per representative (Top 10) and per party.
+
 ```
 Pro Partei:
 | Partei                | avgKommentare |
@@ -112,10 +160,9 @@ Pro Partei:
 ```
 
 ### (4c) Longest Session
-- **By duration** (in minutes)
-- **By total text length** (characters)
 
-Example output:
+Measured both by duration (minutes) and total text length (characters).
+
 ```
 Längste Sitzung (nach Zeit):
 | wp | nr  | datum      | dauerMinuten |
@@ -123,19 +170,52 @@ Längste Sitzung (nach Zeit):
 | 20 | 210 | 2025-01-30 | 1039         |
 ```
 
+---
+
+## AI Assistant (RAG)
+
+The project includes a **Retrieval-Augmented Generation (RAG)** pipeline that answers natural-language questions grounded in the actual parliamentary speeches — not general knowledge.
+
+### How It Works
+
+1. **Ingestion** — Speeches are converted to high-dimensional vector embeddings using OpenAI and stored in a Neo4j Vector Index.
+2. **Retrieval** — A user query (e.g., *"What was discussed about nuclear energy?"*) is embedded and matched against the most semantically similar speeches in the database.
+3. **Generation** — The AI reads the retrieved speeches and generates a concise, cited answer naming the original speakers.
+
+### Configuration
+
+To use the AI assistant, set your OpenAI API key as an environment variable before running:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+---
+
+## Known Data Issues
+
+### 1. Duplicate XML File
+One XML file contains duplicate session data (Session 207 from `7.xml`). The parser automatically detects and skips this duplicate.
+
+### 2. Shared Speaker IDs
+Two different politicians share the same speaker ID in the source XML:
+
+| Speaker | File |
+|---|---|
+| Alexander Föhr | `91.xml` |
+| Dirk-Ulrich Mende | `116.xml` |
+
+Because `MERGE` operates on speaker ID, only one of these speakers will be fully represented in the database. This is a data quality issue in the source files and may cause attribution errors for these two individuals.
+
+---
+
 ## Processing Statistics
 
-From the last execution:
-- **Files processed**: 214 XML files
-- **Sessions loaded**: 213 (1 duplicate skipped)
-- **Speakers loaded**: 806 (with Abgeordneten labels)
-- **Speeches and comments**: Successfully loaded with relationships
-### Known Data Issues
+From the most recent full run:
 
-1. **Duplicate XML File**: One XML file contains duplicate session data (Session 207 from `7.xml`). The parser automatically detects and skips this duplicate during processing.
-
-2. **Shared Speaker IDs**: Two different politicians share the same ID in the source data:
-   - **Alexander Föhr** (in `91.xml`)
-   - **Dirk-Ulrich Mende** (in `116.xml`)
-   
-   Both are assigned the same speaker ID in the XML files, which violates the uniqueness constraint. Due to the `MERGE` operation on speaker IDs, only one of these speakers will be properly represented in the database, potentially causing attribution errors.
+| Metric | Value |
+|---|---|
+| XML files processed | 214 |
+| Sessions loaded | 213 *(1 duplicate skipped)* |
+| Speakers loaded | 806 *(with Abgeordneten labels)* |
+| Speeches & comments | Successfully loaded with all relationships |

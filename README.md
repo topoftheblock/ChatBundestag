@@ -1,6 +1,6 @@
-# Parliamentary Protocol Parser & AI Assistant
+# Parliamentary Protocol Parser & Advanced GraphRAG Assistant
 
-> A Java application for parsing XML protocols from the German Bundestag, loading them into a Neo4j graph database, and enabling natural-language querying via an AI-powered RAG pipeline.
+A Java application for parsing XML protocols from the German Bundestag, loading them into an embedded Neo4j graph database, and enabling highly contextual, natural-language querying via an advanced GraphRAG (Retrieval-Augmented Generation) pipeline.
 
 ---
 
@@ -8,22 +8,20 @@
 
 - [Overview](#overview)
 - [Key Features](#key-features)
-- [Architecture](#architecture)
+- [The GraphRAG Architecture](#the-graphrag-architecture)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Execution Workflow](#execution-workflow)
-- [Statistical Analyses](#statistical-analyses)
-- [AI Assistant (RAG)](#ai-assistant-rag)
+- [Graph Analytics & Statistics](#graph-analytics--statistics)
 - [Known Data Issues](#known-data-issues)
-- [Processing Statistics](#processing-statistics)
 
 ---
 
 ## Overview
 
-This project processes **214 XML protocol files** from German Bundestag parliamentary sessions. It extracts structured information about sessions, speakers, speeches, and interjections, loads everything into an embedded Neo4j graph database, and provides automated statistical analysis. A conversational AI assistant powered by LangChain4j and OpenAI allows natural-language querying of the ingested data.
+This project processes 214 XML protocol files from German Bundestag parliamentary sessions. It extracts structured information about sessions, speakers, speeches, and interjections, and loads everything into an embedded Neo4j graph database.
 
-> **Note:** Code comments indicate where each assignment sub-question is solved.
+Beyond standard data ingestion, this application serves as an **Advanced AI GraphRAG system**. By combining OpenAI's vector embeddings with Neo4j's relational graph traversals, the AI assistant doesn't just read isolated text snippets — it understands the political context, the timeline, the speaker's party affiliation, and the real-time reactions (heckling/comments) from the parliament floor.
 
 ---
 
@@ -31,33 +29,30 @@ This project processes **214 XML protocol files** from German Bundestag parliame
 
 | Feature | Description |
 |---|---|
-| **Robust XML Parsing** | DOM-based parser with duplicate detection and error handling |
-| **Graph Database Integration** | Embedded Neo4j with optimized batch loading via `UNWIND` and `MERGE` |
-| **AI Parliamentary Assistant** | RAG pipeline for natural-language questions over speech data |
-| **Statistical Analysis** | Automated Cypher queries for speech patterns and comment frequencies |
-| **High Performance** | Batch operations ensure idempotent, atomic data loading |
+| **Advanced GraphRAG** | Custom LangChain4j integration that combines semantic vector search with Cypher graph traversals for highly accurate AI answers. |
+| **Graph Network Analytics** | Calculates Degree Centrality, implicitly detects cross-party interaction networks, and traces topic evolution over time. |
+| **Embedded Graph Database** | Runs Neo4j locally with an explicitly enabled Bolt Connector (Port 7687) to support direct AI retrieval. |
+| **Robust XML Parsing** | DOM-based parser with duplicate detection, caching, and error handling. |
+| **High Performance** | Batch operations via `UNWIND` and `MERGE` ensure idempotent, atomic data loading. |
 
 ---
 
-## Architecture
+## The GraphRAG Architecture
 
-### Design Patterns
+Unlike standard RAG pipelines that only pass raw text chunks to an LLM, this application uses a **Hybrid GraphRAG** approach to provide the AI with deep structural context.
 
-**Interface-Driven Design**
-All core components (`Sitzung`, `Rede`, `Redner`, `DatabaseConnection`) are defined by interfaces, decoupling application logic from specific implementations.
+### How the Pipeline Works
 
-**Factory & Singleton Pattern**
-`AppFactory` serves as a singleton for accessing core services such as `XMLParser` and creating `DatabaseConnection` instances.
+1. **Vector Ingestion:** Speeches are converted to 1536-dimensional vector embeddings using OpenAI (`text-embedding-ada-002`) and stored in a Neo4j Vector Index with their unique `redeId` as metadata.
 
-**Model-to-Node Mapping**
-Each model class exposes a `toNode()` method, making it responsible for its own database representation.
+2. **Semantic Search:** When a user asks a question (e.g., *"How did the CDU/CSU leadership position themselves on economic policy before 2025?"*), the system embeds the query and fetches the top 3 most semantically relevant speeches.
 
-### Efficient Batch Loading
+3. **Graph Traversal (The Secret Sauce):** A custom `GraphRAGRetriever` intercepts the matches. Using the matched `redeId`, it executes a native Cypher query to traverse the surrounding graph:
+    - `(r:Rede)-[:GEHALTEN_IN]->(s:Sitzung)` → Extracts the exact **Date**.
+    - `(redner:Redner)-[:HAT_GESPROCHEN]->(r:Rede)` → Extracts the **Speaker Name** and **Party** (`Fraktion`).
+    - `(r:Rede)-[:BEINHALTET]->(k:Kommentar)` → Extracts any **Interruptions/Heckling** shouted during that specific speech.
 
-Data is loaded in batches using Neo4j's `UNWIND` and `MERGE` commands, ensuring:
-- High throughput
-- Data idempotency (no duplicates on re-runs)
-- Atomic operations
+4. **Context Assembly & Generation:** The retrieved text, alongside its rich graph context, is formatted into a "Protocol Excerpt" and sent to the LLM (`gpt-3.5-turbo` / `gpt-4o`). The resulting AI answer is highly accurate, context-aware, and immune to typical RAG hallucinations.
 
 ---
 
@@ -65,21 +60,20 @@ Data is loaded in batches using Neo4j's `UNWIND` and `MERGE` commands, ensuring:
 
 ```
 org.texttechnologylab.ppr/
-├── Main.java                      # Application entry point
-├── AppFactory.java                # Singleton factory for services
+├── Main.java                   # App entry point (Coordinates Parsing, DB, Analytics, AI)
+├── AppFactory.java             # Singleton factory for services
 ├── parser/
-│   └── XMLParser.java             # DOM-based XML parser with caching
+│   └── XMLParser.java          # DOM-based XML parser with caching
+├── chatbot/
+│   ├── RagService.java         # Initializes embeddings, vector store, and AI services
+│   ├── GraphRAGRetriever.java  # Custom LangChain4j Retriever executing Cypher traversals
+│   └── ParliamentAssistant.java # AI Agent interface with System Prompts
 ├── model/
-│   ├── interfaces/                # Data model contracts
-│   │   ├── Sitzung.java
-│   │   ├── Rede.java
-│   │   ├── Redner.java
-│   │   ├── Abgeordneter.java
-│   │   └── Kommentar.java
-│   └── *.Impl.java                # Concrete implementations
+│   ├── interfaces/             # Data model contracts (Sitzung, Rede, Redner, etc.)
+│   └── *.Impl.java             # Concrete implementations providing toNode() logic
 └── db/
-    ├── DatabaseConnection.java    # Database operation interface
-    └── Neo4jConnection.java       # Neo4j-specific implementation
+    ├── DatabaseConnection.java
+    └── Neo4jConnection.java    # Neo4j implementation (Embedded + Bolt + Graph Algorithms)
 ```
 
 ---
@@ -88,134 +82,64 @@ org.texttechnologylab.ppr/
 
 ### Prerequisites
 
-- **Java 21** (JDK)
-- **Apache Maven**
-- **Neo4j 5.13.0** (included as a Maven dependency — no separate installation required)
+- Java 21 (JDK)
+- Apache Maven
+- Neo4j 5.13.0 (included as a Maven dependency)
+- OpenAI API Key (**required** for the RAG Assistant)
 
 ### Build & Run
 
+1. Place your XML protocol files in `src/main/resources/`.
+
+2. Export your OpenAI key to your environment:
+
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd <project-directory>
+export OPENAI_API_KEY="sk-your-api-key-here"
+```
 
-# Build with Maven
+3. Build and run the application:
+
+```bash
 mvn clean package
-
-# Run the application
 mvn exec:java -Dexec.mainClass="org.texttechnologylab.ppr.Main"
 ```
 
-XML protocol files should be placed in `src/main/resources/`. The embedded Neo4j database is created automatically at `target/neo4j-db`.
+The embedded Neo4j database is created automatically at `target/neo4j-db`. The application will process the data, print the graph analytics to the console, and immediately drop you into the interactive Parliament AI Chat.
 
 ---
 
 ## Execution Workflow
 
-The application runs the following pipeline on startup:
-
-1. **Find Files** — Scans `src/main/resources/` for `.xml` files
-2. **Parse XMLs** — Transforms XML into Java model objects (`Sitzung`, `Rede`, `Redner`, etc.)
-    - Uses a `rednerCache` to deduplicate speaker objects
-    - Detects and skips duplicate sessions
-3. **Start Database** — Initializes the embedded Neo4j instance at `target/neo4j-db`
-4. **Clear Database** — Runs `MATCH (n) DETACH DELETE n` to remove stale data
-5. **Create Constraints** — Applies `UNIQUE` constraints on `Sitzung`, `Redner`, and `Rede` nodes
-6. **Load Nodes**
-    - `ladeSitzungen()` — Parliamentary sessions
-    - `ladeRedner()` — Speakers with `:Abgeordneter` labels
-    - `ladeRedenUndKommentare()` — Speeches and associated comments
-7. **Create Relationships** — Establishes `[:HAT_GESPROCHEN]`, `[:GEHALTEN_IN]`, and `[:BEINHALTET]` edges
-8. **Run Statistics** — Executes analytical Cypher queries and prints results
-9. **Shutdown** — Safely closes the embedded database
+1. **Parse XMLs:** Transforms XML files into Java objects, detecting duplicates and caching speakers.
+2. **Start Database:** Initializes the embedded Neo4j instance and opens the Bolt port (7687) for LangChain4j.
+3. **Load Graph:** Clears old data, creates constraints, and uses batch Cypher queries (`UNWIND`/`MERGE`) to load nodes and relationships.
+4. **Run Analytics:** Executes statistical and advanced graph network algorithms.
+5. **Start GraphRAG AI:** Embeds speeches into the Vector Store and starts the interactive CLI chat loop.
 
 ---
 
-## Statistical Analyses
+## Graph Analytics & Statistics
 
-> **Note:** Party-level statistics include only *Abgeordnete* (parliament members with official party affiliation in the XML). Politicians marked as `"Keine Fraktion"` are excluded from party aggregations but still appear in individual speaker statistics.
+Before the chatbot starts, the system automatically calculates insights using the graph structure.
 
-### (4a) Average Speech Length (in characters)
+### 1. Network Analytics (Graph Data Science)
 
-Calculated per representative (Top 10) and per party.
+- **Degree Centrality:** Identifies the most "provocative" speakers by calculating the in-degree of `[:BEINHALTET]` relationships (who gets interrupted/commented on the most).
+- **Community Interaction:** Projects an implicit bipartite network to reveal informal cross-party engagement (e.g., which parties comment most frequently during another specific party's speeches).
+- **Temporal Pathfinding:** Traverses `[:GEHALTEN_IN]` edges over time to plot the frequency and evolution of specific topics (e.g., `"Klima"`) across parliamentary sessions.
 
-```
-Pro Redner (Top 10):
-| vorname   | nachname | Partei         | avgLaenge |
-|-----------|----------|----------------|-----------|
-| Markus    | Söder    | Keine Fraktion | 10850,00  |
-| Friedrich | Merz     | CDU/CSU        | 10593,62  |
-```
+### 2. Standard Statistics
 
-### (4b) Average Comment Frequency (per speech)
+- **Average Speech Length:** Calculated per representative (Top 10) and per party.
+- **Average Comment Frequency:** Identifies which parties draw the highest average number of interruptions per speech.
+- **Session Extremes:** Finds the longest session by time elapsed and by total characters spoken.
 
-Calculated per representative (Top 10) and per party.
-
-```
-Pro Partei:
-| Partei                | avgKommentare |
-|-----------------------|---------------|
-| CDU/CSU               | 9,11          |
-| BÜNDNIS 90/DIE GRÜNEN | 8,73          |
-```
-
-### (4c) Longest Session
-
-Measured both by duration (minutes) and total text length (characters).
-
-```
-Längste Sitzung (nach Zeit):
-| wp | nr  | datum      | dauerMinuten |
-|----|-----|------------|--------------|
-| 20 | 210 | 2025-01-30 | 1039         |
-```
-
----
-
-## AI Assistant (RAG)
-
-The project includes a **Retrieval-Augmented Generation (RAG)** pipeline that answers natural-language questions grounded in the actual parliamentary speeches — not general knowledge.
-
-### How It Works
-
-1. **Ingestion** — Speeches are converted to high-dimensional vector embeddings using OpenAI and stored in a Neo4j Vector Index.
-2. **Retrieval** — A user query (e.g., *"What was discussed about nuclear energy?"*) is embedded and matched against the most semantically similar speeches in the database.
-3. **Generation** — The AI reads the retrieved speeches and generates a concise, cited answer naming the original speakers.
-
-### Configuration
-
-To use the AI assistant, set your OpenAI API key as an environment variable before running:
-
-```bash
-export OPENAI_API_KEY="sk-..."
-```
+> **Note:** Politicians marked as `"Keine Fraktion"` are excluded from party-level aggregations but remain in individual speaker statistics.
 
 ---
 
 ## Known Data Issues
 
-### 1. Duplicate XML File
-One XML file contains duplicate session data (Session 207 from `7.xml`). The parser automatically detects and skips this duplicate.
+- **Duplicate XML File:** One XML file contains duplicate session data (Session 207 from `7.xml`). The parser automatically detects and skips this duplicate.
 
-### 2. Shared Speaker IDs
-Two different politicians share the same speaker ID in the source XML:
-
-| Speaker | File |
-|---|---|
-| Alexander Föhr | `91.xml` |
-| Dirk-Ulrich Mende | `116.xml` |
-
-Because `MERGE` operates on speaker ID, only one of these speakers will be fully represented in the database. This is a data quality issue in the source files and may cause attribution errors for these two individuals.
-
----
-
-## Processing Statistics
-
-From the most recent full run:
-
-| Metric | Value |
-|---|---|
-| XML files processed | 214 |
-| Sessions loaded | 213 *(1 duplicate skipped)* |
-| Speakers loaded | 806 *(with Abgeordneten labels)* |
-| Speeches & comments | Successfully loaded with all relationships |
+- **Shared Speaker IDs:** Two different politicians share the same speaker ID in the source XML (`Alexander Föhr` in `91.xml` and `Dirk-Ulrich Mende` in `116.xml`). Because `MERGE` operates on speaker ID, only one of these speakers will be fully represented. This is a source data quality issue.

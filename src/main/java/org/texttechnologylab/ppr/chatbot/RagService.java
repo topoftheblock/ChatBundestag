@@ -7,7 +7,6 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
-import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreIngestor;
@@ -23,9 +22,12 @@ public class RagService {
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
     private final String openAiKey;
+    // We now keep a reference to the driver to query the graph
+    private final Driver neo4jDriver;
 
     public RagService(Driver neo4jDriver) {
-        this.openAiKey = System.getenv("OPENAI_API_KEY"); // Make sure to set this!
+        this.openAiKey = System.getenv("OPENAI_API_KEY");
+        this.neo4jDriver = neo4jDriver; // Store for the Graph Retriever
 
         // 1. Initialize the Embedding Model (Converts text to vectors)
         this.embeddingModel = OpenAiEmbeddingModel.withApiKey(openAiKey);
@@ -47,21 +49,16 @@ public class RagService {
         List<Document> documents = new ArrayList<>();
 
         for (Rede rede : speeches) {
-            // Grab the text of the speech
             String text = rede.getText();
             if (text == null || text.trim().isEmpty()) continue;
 
-            // Add metadata so the LLM knows who is speaking
             Metadata metadata = new Metadata();
             metadata.put("redeId", rede.getId());
-            if (rede.getRedner() != null) {
-                metadata.put("speaker", rede.getRedner().getName());
-            }
+            // The metadata ID is crucial so our GraphRAG can anchor to the right node later!
 
             documents.add(Document.from(text, metadata));
         }
 
-        // Ingestor handles chunking the text and saving it to Neo4j automatically
         EmbeddingStoreIngestor ingestor = EmbeddingStoreIngestor.builder()
                 .embeddingModel(embeddingModel)
                 .embeddingStore(embeddingStore)
@@ -72,23 +69,24 @@ public class RagService {
     }
 
     /**
-     * Builds and returns the conversational agent.
+     * Builds and returns the conversational agent using Graph RAG.
      */
     public ParliamentAssistant getAssistant() {
-        // The LLM that will generate the final text
         OpenAiChatModel chatModel = OpenAiChatModel.withApiKey(openAiKey);
 
-        // The retriever that searches Neo4j for the closest matching vectors
-        EmbeddingStoreContentRetriever retriever = EmbeddingStoreContentRetriever.builder()
-                .embeddingStore(embeddingStore)
-                .embeddingModel(embeddingModel)
-                .maxResults(3) // Fetch the top 3 most relevant speeches
-                .minScore(0.75) // Minimum relevance score
-                .build();
+        // --- NEW: Using the Custom GraphRAG Retriever ---
+        // Instead of the standard EmbeddingStoreContentRetriever, we use our own.
+        GraphRAGRetriever retriever = new GraphRAGRetriever(
+                embeddingStore,
+                embeddingModel,
+                neo4jDriver,
+                3,     // Fetch the top 3 most relevant speeches
+                0.75   // Minimum relevance score
+        );
 
         return AiServices.builder(ParliamentAssistant.class)
                 .chatLanguageModel(chatModel)
-                .chatMemory(MessageWindowChatMemory.withMaxMessages(10)) // Remembers context
+                .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .contentRetriever(retriever)
                 .build();
     }

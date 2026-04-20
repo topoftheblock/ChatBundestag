@@ -1,5 +1,7 @@
 package org.texttechnologylab.ppr.db;
 
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -32,13 +34,20 @@ public class Neo4jConnection implements DatabaseConnection {
     /**
      * Konstruiert eine neue Neo4jConnection und startet die
      * eingebettete Datenbank im angegebenenVerzeichnis.
+     * WICHTIG: Bolt wird aktiviert, damit LangChain4j via RAG zugreifen kann.
      */
     public Neo4jConnection(String databaseDirectory) {
         System.out.println("Starte Embedded Neo4j-Datenbank in: " + databaseDirectory);
         Path dbPath = new File(databaseDirectory).toPath();
-        this.managementService = new DatabaseManagementServiceBuilder(dbPath).build();
+
+        // Aktiviere den Bolt Connector, damit LangChain4j (und GraphDatabase.driver) sich verbinden können
+        this.managementService = new DatabaseManagementServiceBuilder(dbPath)
+                .setConfig(BoltConnector.enabled, true)
+                .setConfig(BoltConnector.listen_address, new SocketAddress("localhost", 7687))
+                .build();
+
         this.graphDb = managementService.database(DEFAULT_DB_NAME);
-        System.out.println("Neo4j-Datenbank erfolgreich gestartet.");
+        System.out.println("Neo4j-Datenbank (inkl. Bolt auf Port 7687) erfolgreich gestartet.");
     }
 
     private void executeWriteQuery(String query, Map<String, Object> parameters) {

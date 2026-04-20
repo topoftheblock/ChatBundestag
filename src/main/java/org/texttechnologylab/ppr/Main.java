@@ -6,6 +6,7 @@ import org.neo4j.driver.GraphDatabase;
 import org.texttechnologylab.ppr.chatbot.ParliamentAssistant;
 import org.texttechnologylab.ppr.chatbot.RagService;
 import org.texttechnologylab.ppr.db.DatabaseConnection;
+import org.texttechnologylab.ppr.db.Neo4jConnection;
 import org.texttechnologylab.ppr.model.interfaces.Rede;
 import org.texttechnologylab.ppr.model.interfaces.Sitzung;
 import org.texttechnologylab.ppr.parser.XMLParser;
@@ -28,7 +29,8 @@ import java.util.stream.Stream;
  * 2. Parsen der XML-Dateien in Java-Objekte Modelle über die {@link AppFactory}.
  * 3. Laden der Objekte in die Neo4j-Datenbank.
  * 4. Ausführen der statistischen Auswertungen auf der Database.
- * 5. (Neu) Starten des KI-Assistenten (RAG).
+ * 5. Ausführen der Graphen-Algorithmen (Centrality, Communities, Pathfinding).
+ * 6. (Neu) Starten des KI-Assistenten (RAG).
  */
 public class Main {
     /**
@@ -81,7 +83,14 @@ public class Main {
                 db.erstelleBeziehungen(sitzungen);
 
                 System.out.println("Datenbank-Upload abgeschlossen.");
+
+                // 1. Standard-Statistiken ausführen
                 db.fuehreStatistikenAus();
+
+                // 2. Neue Graph-Data-Science Algorithmen ausführen
+                if (db instanceof Neo4jConnection) {
+                    ((Neo4jConnection) db).fuehreGraphAlgorithmenAus();
+                }
 
                 // --- START AI RAG SYSTEM ---
                 startChatBot(sitzungen);

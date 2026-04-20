@@ -23,8 +23,6 @@ import java.util.LinkedHashMap;
 /**
  * Implementierung der DatabaseConnection Schnittstelle für eine eingebettete Neo4j-Datenbank
  */
-// Hier löse ich die Anforderungen für Aufgabe 3a: Erstellen Sie eine Klasse Neo4jConnection
-// Hier löse ich die Anforderungen für Aufgabe 2c: Implementierung des Interfaces
 public class Neo4jConnection implements DatabaseConnection {
 
     private final DatabaseManagementService managementService;
@@ -34,21 +32,15 @@ public class Neo4jConnection implements DatabaseConnection {
     /**
      * Konstruiert eine neue Neo4jConnection und startet die
      * eingebettete Datenbank im angegebenenVerzeichnis.
-     * (Hier löse ich die Anforderungen fürAufgabe 3a: Kommunikation herstellen, embedded Neo4j)
      */
     public Neo4jConnection(String databaseDirectory) {
         System.out.println("Starte Embedded Neo4j-Datenbank in: " + databaseDirectory);
         Path dbPath = new File(databaseDirectory).toPath();
-        // task 3a Verwenden Sie die Maven-Dependency
         this.managementService = new DatabaseManagementServiceBuilder(dbPath).build();
         this.graphDb = managementService.database(DEFAULT_DB_NAME);
         System.out.println("Neo4j-Datenbank erfolgreich gestartet.");
     }
 
-    /**
-     * eineCypher--Schreibabfrage in einer dediziertenTransaktion wird ausgeführt
-     * (Hier löse ich die Anforderungen für Aufgabe 3a: Verwenden Sie für Abfragen aller Art, Cypher
-     */
     private void executeWriteQuery(String query, Map<String, Object> parameters) {
         try (Transaction tx = graphDb.beginTx()) {
             tx.execute(query, parameters);
@@ -59,11 +51,6 @@ public class Neo4jConnection implements DatabaseConnection {
         }
     }
 
-    /**
-     * execute: eineCypherSchreibabfrage mit{@code UNWIND} aus.
-     * (Hier löse ich die Anforderungen für Aufgabe 3a: Verwenden Sie Cypher)
-     * (Hier löse ich die Anforderungen für Aufgabe 2e: Nutzung von Collections)
-     */
     private void executeUnwindQuery(String query, List<Map<String, Object>> dataList, String listName) {
         try (Transaction tx = graphDb.beginTx()) {
             tx.execute(query, Map.of(listName, dataList));
@@ -74,10 +61,6 @@ public class Neo4jConnection implements DatabaseConnection {
         }
     }
 
-    /**
-     * alleKnoten und Beziehungen aus der-Datenbank werden gelöscht
-     * (Hier löse ich die Anforderungen für Aufgabe 3a: Löschen von Knoten und Relationen)
-     */
     @Override
     public void loescheDatenbank() {
         System.out.println("Lösche alte Datenbankinhalte...");
@@ -85,10 +68,6 @@ public class Neo4jConnection implements DatabaseConnection {
         System.out.println("Löschen abgeschlossen.");
     }
 
-    /**
-     * Datenbank-Constraints für die Eindeutigkeit). werden erstellt
-     * (Hier löse ich die Anforderungen für Teil von Aufgabe 3b: Sicherstellen, dass Informationen nicht doppelt eingelesen werden)
-     */
     @Override
     public void erstelleConstraints() {
         System.out.println("Erstelle Indizes und Constraints...");
@@ -98,37 +77,25 @@ public class Neo4jConnection implements DatabaseConnection {
         System.out.println("Constraints erstellt.");
     }
 
-    /**
-     * Sitzungen in das DB.
-     * (Hier löse ich die Anforderungen für Aufgabe 3b: Übertragen der eingelesenen Protokolle / Datenstrukturen)
-     */
     @Override
     public void ladeSitzungen(List<Sitzung> sitzungen) {
         System.out.println("Lade " + sitzungen.size() + " Sitzungen...");
-        // The Query uses datetime() für die start/endDateTime-Strings
         String query = "UNWIND $data AS props " +
                 "MERGE (s:Sitzung { wahlperiode: props.wahlperiode, sitzungNr: props.sitzungNr }) " +
                 "SET s.datum = date(props.datum), " +
                 "    s.startDateTime = CASE WHEN props.startDateTime IS NOT NULL THEN datetime(props.startDateTime) ELSE null END, " +
                 "    s.endDateTime = CASE WHEN props.endDateTime IS NOT NULL THEN datetime(props.endDateTime) ELSE null END";
 
-        // Hier für Aufgabe 2e: Nutzung von Streams
         List<Map<String, Object>> data = sitzungen.stream()
-                // Aufgabe 3c: Use of  der toNode() Methode
                 .map(Sitzung::toNode)
                 .collect(Collectors.toList());
 
         executeUnwindQuery(query, data, "data");
     }
 
-    /**
-     * Laden von  Redner and Abgeordnete in die DB.
-     * (Hier löse ich die Anforderungen für Aufgabe 3b: Übertragen der Datenstrukturen)
-     */
     @Override
     public void ladeRedner(Collection<Redner> redner) {
         System.out.println("Lade " + redner.size() + " Redner...");
-        // Hier löse ich die Anforderungen für Aufgabe 3b: MERGE in cyphter verhindert doppeltes Einlesen
         String query = "UNWIND $data AS props " +
                 "MERGE (r:Redner { id: props.id }) " +
                 "SET r.vorname = props.vorname, " +
@@ -137,13 +104,11 @@ public class Neo4jConnection implements DatabaseConnection {
                 "    r.fraktion = props.fraktion";
 
         List<Map<String, Object>> data = redner.stream()
-                //Hier löse ich die Anforderungen für Aufgabe 3c: Nutzung der toNode() Methode
                 .map(Redner::toNode)
                 .collect(Collectors.toList());
 
         executeUnwindQuery(query, data, "data");
 
-        // Füge das Label für Abgeordneter hinzu, für alle Redner, die eine Fraktion haben
         String abgLabelQuery = "MATCH (r:Redner) " +
                 "WHERE r.fraktion IS NOT NULL " +
                 "SET r:Abgeordneter";
@@ -152,10 +117,6 @@ public class Neo4jConnection implements DatabaseConnection {
         System.out.println("Redner geladen und Abgeordneten-Label aktualisiert.");
     }
 
-    /**
-     * is loading Reden and Kommentare in derr DB.
-     * (Hier löse ich die Anforderungen für Aufgabe 3b: Übertragen der Datenstrukturen)
-     */
     @Override
     public void ladeRedenUndKommentare(List<Sitzung> sitzungen) {
         System.out.println("Lade Reden und Kommentare...");
@@ -166,13 +127,11 @@ public class Neo4jConnection implements DatabaseConnection {
 
         List<Map<String, Object>> redenData = sitzungen.stream()
                 .flatMap(s -> s.getReden().stream())
-                // Aufgabe 3cNutzung der toNode() Methode
                 .map(Rede::toNode)
                 .collect(Collectors.toList());
 
         executeUnwindQuery(redeQuery, redenData, "data");
 
-        //Hier löse ich die Anforderungen für Aufgabe 3a: Erstellen von Knoten und Relationen
         String kommentarQuery = "UNWIND $data AS d " +
                 "MATCH (r:Rede { id: d.redeId }) " +
                 "UNWIND d.kommentare AS kommentarProps " +
@@ -185,7 +144,6 @@ public class Neo4jConnection implements DatabaseConnection {
                 .map(rede -> Map.of(
                         "redeId", rede.getId(),
                         "kommentare", rede.getKommentare().stream()
-                                // Hier Aufgabe 3c: Nutzung der toNode() Methode
                                 .map(Kommentar::toNode)
                                 .collect(Collectors.toList())
                 ))
@@ -196,15 +154,10 @@ public class Neo4jConnection implements DatabaseConnection {
         System.out.println("Reden und Kommentare geladen.");
     }
 
-    /**
-     * Erstellt die Beziehungen between den Knoten in der DB.
-     * (Hier löse ich die Anforderungen für Aufgabe 3a: Erstellen von Relationen)
-     */
     @Override
     public void erstelleBeziehungen(List<Sitzung> sitzungen) {
         System.out.println("Erstelle Beziehungen (Redner/Rede/Sitzung)...");
 
-        // Hier löse ich die Anforderungen für Aufgabe 2e: Nutzung von Streams
         List<Map<String, Object>> beziehungsDaten = sitzungen.stream()
                 .flatMap(sitzung -> sitzung.getReden().stream()
                         .filter(rede -> rede.getRedner() != null)
@@ -218,7 +171,6 @@ public class Neo4jConnection implements DatabaseConnection {
                         }))
                 .toList();
 
-        // Hier löse ich die Anforderungen für Aufgabe 3a: Verwenden Sie Cypher
         String query = "UNWIND $data AS d " +
                 "MATCH (r:Rede { id: d.redeId }) " +
                 "MATCH (redner:Redner { id: d.rednerId }) " +
@@ -230,15 +182,11 @@ public class Neo4jConnection implements DatabaseConnection {
         System.out.println("Alle Daten erfolgreich geladen.");
     }
 
-    /**
-     * Führt alle vordefinierten statistischen Abfragen, Aufgabe 4, aus.
-     */
     @Override
     public void fuehreStatistikenAus() {
         System.out.println("\n--- STATISTIKEN (AUFGABE 4) ---");
 
         System.out.println("\n(4a) Durchschnittliche Redelänge (Anzahl Zeichen):");
-
         String q4a_redner =
                 "MATCH (rn:Redner)-[:HAT_GESPROCHEN]->(r:Rede) " +
                         "RETURN rn.vorname AS vorname, rn.nachname AS nachname, " +
@@ -246,7 +194,6 @@ public class Neo4jConnection implements DatabaseConnection {
                         "ORDER BY avgLaenge DESC LIMIT 10";
         printResults(q4a_redner, "  Pro Redner (Top 10):");
 
-        // Aufgabe 4a: Ermitteln Sie die durchschnittliche Redelänge pro Fraktion
         String q4a_fraktion =
                 "MATCH (rn:Abgeordneter)-[:HAT_GESPROCHEN]->(r:Rede) " +
                         "WHERE rn.fraktion IS NOT NULL AND rn.fraktion <> '' AND rn.fraktion <> 'FRAKTIONSLOS' " +
@@ -255,7 +202,6 @@ public class Neo4jConnection implements DatabaseConnection {
         printResults(q4a_fraktion, "  Pro Partei:");
 
         System.out.println("\n(4b) Durchschnittliche Kommentar-Häufigkeit pro Rede:");
-
         String q4b_redner =
                 "MATCH (rn:Redner)-[:HAT_GESPROCHEN]->(r:Rede) " +
                         "OPTIONAL MATCH (r)-[:BEINHALTET]->(k:Kommentar) " +
@@ -265,7 +211,6 @@ public class Neo4jConnection implements DatabaseConnection {
                         "ORDER BY avgKommentare DESC LIMIT 10";
         printResults(q4b_redner, "  Pro Redner (Top 10):");
 
-        // Hier löse ich die Anforderungen für Aufgabe 4b: Geben Sie die Kommentar-Häufigkeit pro Rede an: pro Fraktion
         String q4b_fraktion =
                 "MATCH (rn:Abgeordneter)-[:HAT_GESPROCHEN]->(r:Rede) " +
                         "WHERE rn.fraktion IS NOT NULL AND rn.fraktion <> '' AND rn.fraktion <> 'FRAKTIONSLOS' " +
@@ -276,8 +221,6 @@ public class Neo4jConnection implements DatabaseConnection {
         printResults(q4b_fraktion, "  Pro Partei:");
 
         System.out.println("\n(4c) Längste Sitzung:");
-
-        // Die Abfrage utilizes startDateTime und endDateTime für die length
         String q4c_zeit =
                 "MATCH (s:Sitzung) " +
                         "WHERE s.startDateTime IS NOT NULL AND s.endDateTime IS NOT NULL " +
@@ -286,7 +229,6 @@ public class Neo4jConnection implements DatabaseConnection {
                         "ORDER BY dauerMinuten DESC LIMIT 1";
         printResults(q4c_zeit, "  Längste Sitzung (nach Zeit):");
 
-        //Hier löse ich die Anforderungen für Aufgabe 4c: Längste Sitzung bezüglich der Gesamtlänge aller Reden
         String q4c_text =
                 "MATCH (s:Sitzung)<-[:GEHALTEN_IN]-(r:Rede) " +
                         "RETURN s.wahlperiode AS wp, s.sitzungNr AS nr, s.datum AS datum, " +
@@ -298,12 +240,47 @@ public class Neo4jConnection implements DatabaseConnection {
     }
 
     /**
-     * Hilfsmethode zur execution  von Cypher-Abfrage und to formatierten. Ausgabe der Ergebnisse als Tabelle auf der Konsole.
-     * (Aufgabe 4: Die statistischen Ausgaben sollten ... durch Konsolen-Ausgaben visualisiert werden)
+     * Führt erweiterte Graph-Algorithmen und Netzwerkanalysen aus.
      */
+    public void fuehreGraphAlgorithmenAus() {
+        System.out.println("\n--- ERWEITERTE GRAPH-ANALYSEN ---");
+
+        System.out.println("\n(1) Degree Centrality: Provokanteste Redner (Meiste Unterbrechungen/Kommentare)");
+        String qCentrality =
+                "MATCH (redner:Redner)-[:HAT_GESPROCHEN]->(r:Rede)-[:BEINHALTET]->(k:Kommentar) " +
+                        "WITH redner, count(k) AS totalComments " +
+                        "RETURN redner.vorname AS vorname, redner.nachname AS nachname, " +
+                        "       redner.fraktion AS Partei, totalComments AS degreeCentrality " +
+                        "ORDER BY degreeCentrality DESC LIMIT 10";
+        printResults(qCentrality, "  Top 10 Redner mit der höchsten Degree Centrality:");
+
+        System.out.println("\n(2) Community Detection & Interaktions-Netzwerke (Partei-übergreifend)");
+        String qCommunity =
+                "MATCH (speaker:Abgeordneter)-[:HAT_GESPROCHEN]->(r:Rede)-[:BEINHALTET]->(k:Kommentar) " +
+                        "WHERE k.text IS NOT NULL AND speaker.fraktion IS NOT NULL " +
+                        "UNWIND ['SPD', 'CDU/CSU', 'BÜNDNIS 90/DIE GRÜNEN', 'FDP', 'AfD', 'DIE LINKE'] AS party " +
+                        "WITH speaker, k, party " +
+                        "WHERE k.text CONTAINS party AND speaker.fraktion <> party " +
+                        "RETURN speaker.fraktion AS sprechendePartei, party AS kommentierendePartei, count(k) AS interaktionsGewicht " +
+                        "ORDER BY interaktionsGewicht DESC LIMIT 10";
+        printResults(qCommunity, "  Stärkste informelle Netzwerke (Sprecher-Fraktion vs. Kommentierende Partei):");
+
+        System.out.println("\n(3) Pathfinding: Entwicklung eines Themas über die Zeit (z.B. 'Klima')");
+        String topic = "klima";
+        String qPathfinding =
+                "MATCH (r:Rede)-[:GEHALTEN_IN]->(s:Sitzung) " +
+                        "WHERE toLower(r.text) CONTAINS '" + topic + "' " +
+                        "WITH s, count(r) AS themaErwaehnungen " +
+                        "ORDER BY s.datum ASC " +
+                        "RETURN s.wahlperiode AS WP, s.sitzungNr AS SitzungNr, s.datum AS Datum, " +
+                        "       themaErwaehnungen AS RedenMitThema";
+        printResults(qPathfinding, "  Traversierung des Themas '" + topic + "' durch die Zeitachse:");
+
+        System.out.println("\n--- GRAPH-ANALYSEN ENDE ---");
+    }
+
     private void printResults(String query, String title) {
         System.out.println(title);
-        // Aufgabe 3a: Lesen von Knoten und Relationen
         try (Transaction tx = graphDb.beginTx();
              Result result = tx.execute(query)) {
 
@@ -385,11 +362,6 @@ public class Neo4jConnection implements DatabaseConnection {
         }
     }
 
-
-    /**
-     * Schließt die DatabaseManagementService und fährt die
-     * eingebetteteNeo4j-Datenbank  herunter.
-     */
     @Override
     public void close() {
         System.out.println("Fahre Neo4j-Datenbank herunter...");

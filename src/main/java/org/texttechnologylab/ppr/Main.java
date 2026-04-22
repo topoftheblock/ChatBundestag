@@ -3,6 +3,7 @@ package org.texttechnologylab.ppr;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
+import org.texttechnologylab.ppr.chatbot.ChatUIServer;
 import org.texttechnologylab.ppr.chatbot.ParliamentAssistant;
 import org.texttechnologylab.ppr.chatbot.RagService;
 import org.texttechnologylab.ppr.db.DatabaseConnection;
@@ -30,7 +31,7 @@ import java.util.stream.Stream;
  * 3. Laden der Objekte in die Neo4j-Datenbank.
  * 4. Ausführen der statistischen Auswertungen auf der Database.
  * 5. Ausführen der Graphen-Algorithmen (Centrality, Communities, Pathfinding).
- * 6. (Neu) Starten des KI-Assistenten (RAG).
+ * 6. Starten des KI-Assistenten Web-UI (RAG).
  */
 public class Main {
     /**
@@ -107,7 +108,7 @@ public class Main {
     }
 
     /**
-     * Initialisiert den RagService und startet die Chat-Schleife.
+     * Initialisiert den RagService und startet die Chat-UI.
      */
     private static void startChatBot(List<Sitzung> sitzungen) {
         String openAiKey = System.getenv("OPENAI_API_KEY");
@@ -134,23 +135,19 @@ public class Main {
             ragService.ingestSpeeches(allSpeeches);
 
             ParliamentAssistant assistant = ragService.getAssistant();
-            Scanner scanner = new Scanner(System.in);
 
             System.out.println("\n-------------------------------------------");
-            System.out.println("Parliament AI ist bereit!");
-            System.out.println("Fragen Sie etwas über die Debatten (z.B. 'Wer hat über Steuern gesprochen?')");
-            System.out.println("Tippen Sie 'exit' zum Beenden.");
+            System.out.println("Parliament AI Agent initialized!");
             System.out.println("-------------------------------------------");
 
-            while (true) {
-                System.out.print("\nSie: ");
-                String query = scanner.nextLine();
-                if ("exit".equalsIgnoreCase(query)) break;
+            // Start the Web Interface on port 8080
+            ChatUIServer uiServer = new ChatUIServer(assistant);
+            uiServer.startServer(8080);
 
-                System.out.println("KI sucht in Neo4j und generiert Antwort...");
-                String answer = assistant.chat(query);
-                System.out.println("\nAssistant: " + answer);
-            }
+            // Keep the main thread alive so the server keeps running
+            System.out.println("Press ENTER to shut down the server...");
+            new Scanner(System.in).nextLine();
+
         } catch (Exception e) {
             System.err.println("KI-Fehler: " + e.getMessage());
         }

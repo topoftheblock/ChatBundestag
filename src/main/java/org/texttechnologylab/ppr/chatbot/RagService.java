@@ -27,7 +27,7 @@ public class RagService {
 
     public RagService(Driver neo4jDriver) {
         this.openAiKey = System.getenv("OPENAI_API_KEY");
-        this.neo4jDriver = neo4jDriver; // Store for the Graph Retriever
+        this.neo4jDriver = neo4jDriver; // Store for the Graph Retriever and Tools
 
         // 1. Initialize the Embedding Model (Converts text to vectors)
         this.embeddingModel = OpenAiEmbeddingModel.withApiKey(openAiKey);
@@ -69,12 +69,12 @@ public class RagService {
     }
 
     /**
-     * Builds and returns the conversational agent using Graph RAG.
+     * Builds and returns the conversational agent using Graph RAG and Tools.
      */
     public ParliamentAssistant getAssistant() {
         OpenAiChatModel chatModel = OpenAiChatModel.withApiKey(openAiKey);
 
-        // --- NEW: Using the Custom GraphRAG Retriever ---
+        // --- Using the Custom GraphRAG Retriever ---
         // Instead of the standard EmbeddingStoreContentRetriever, we use our own.
         GraphRAGRetriever retriever = new GraphRAGRetriever(
                 embeddingStore,
@@ -84,10 +84,15 @@ public class RagService {
                 0.75   // Minimum relevance score
         );
 
+        // --- Using Graph Database Tools for Analytics ---
+        // Allows the LLM to write and execute Cypher queries
+        GraphDatabaseTools dbTools = new GraphDatabaseTools(neo4jDriver);
+
         return AiServices.builder(ParliamentAssistant.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .contentRetriever(retriever)
+                .tools(dbTools) // Inject the Cypher execution tool
                 .build();
     }
 }

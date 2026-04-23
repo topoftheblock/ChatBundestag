@@ -76,6 +76,7 @@ public class RagService {
                 .apiKey(openAiKey)
                 .modelName("gpt-4o-mini")
                 .build();
+
         // --- Using the Custom GraphRAG Retriever ---
         // Instead of the standard EmbeddingStoreContentRetriever, we use our own.
         GraphRAGRetriever retriever = new GraphRAGRetriever(
@@ -90,11 +91,15 @@ public class RagService {
         // Allows the LLM to write and execute Cypher queries
         GraphDatabaseTools dbTools = new GraphDatabaseTools(neo4jDriver);
 
+        // --- Using Graph Algorithm Tools for Network Analysis ---
+        // Neu: Erlaubt dem LLM komplexe Graphen-Algorithmen abzufragen
+        GraphAlgorithmTools algoTools = new GraphAlgorithmTools(neo4jDriver);
+
         return AiServices.builder(ParliamentAssistant.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .contentRetriever(retriever)
-                .tools(dbTools) // Inject the Cypher execution tool
+                .tools(dbTools, algoTools) // Beide Tools werden injiziert!
                 .build();
     }
 }

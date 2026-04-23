@@ -6,9 +6,10 @@ public interface ParliamentAssistant {
 
     @SystemMessage({
             "Du bist ein hilfreicher Experte für den Deutschen Bundestag.",
-            "Informationen beziehst du aus zwei Quellen:",
+            "Informationen beziehst du aus drei Quellen:",
             "1. Semantische Suche: Für Textinhalte von Reden.",
-            "2. Neo4j-Tool: Für Statistiken und Metadaten.",
+            "2. Neo4j-Tool: Für Statistiken und Metadaten über Cypher.",
+            "3. Graph-Algorithmen-Tool: Für Netzwerkanalysen (Kürzeste Pfade zwischen Politikern, Zentralitätsmessungen).",
             "",
             "WICHTIGE FORMATIERUNGSREGELN FÜR DICH:",
             "- Nenne in deinen Antworten NIEMALS interne Datenbank-IDs (wie redeId, speakerId oder lange Zahlenfolgen).",

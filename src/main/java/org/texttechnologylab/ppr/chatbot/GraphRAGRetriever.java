@@ -47,7 +47,6 @@ public class GraphRAGRetriever implements ContentRetriever {
         dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(query.text()).content();
 
         System.out.println("[GraphRAG] 2. Führe Vektor-Suche in Neo4j aus...");
-        // Fallback for older Langchain4j versions: use embeddingStore.findRelevant(queryEmbedding, maxResults, minScore)
         List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(
                 EmbeddingSearchRequest.builder()
                         .queryEmbedding(queryEmbedding)
@@ -63,7 +62,7 @@ public class GraphRAGRetriever implements ContentRetriever {
             for (EmbeddingMatch<TextSegment> match : matches) {
                 TextSegment segment = match.embedded();
 
-                // Retrieve the metadata ID we saved during ingestion
+                // Hole die beim Ingest gespeicherte ID
                 String redeId = segment.metadata().getString("redeId");
 
                 if (redeId == null) {
@@ -71,8 +70,8 @@ public class GraphRAGRetriever implements ContentRetriever {
                     continue;
                 }
 
-                // --- THE CYPHER GRAPH TRAVERSAL ---
-                // We start at the matched Speech, traverse to its Session, its Speaker, and any Comments
+                // --- CYPHER GRAPH TRAVERSAL ---
+                // Hier holen wir Datum, Klarnamen und Fraktion aus dem Graphen
                 String cypher = "MATCH (r:Rede {id: $redeId}) " +
                         "OPTIONAL MATCH (r)-[:GEHALTEN_IN]->(s:Sitzung) " +
                         "OPTIONAL MATCH (redner:Redner)-[:HAT_GESPROCHEN]->(r) " +
@@ -91,13 +90,14 @@ public class GraphRAGRetriever implements ContentRetriever {
                     String fraktion = record.get("fraktion").isNull() ? "Keine Fraktion" : record.get("fraktion").asString();
                     List<Object> comments = record.get("kommentare").asList();
 
-                    // --- ASSEMBLE RICH CONTEXT FOR THE LLM ---
+                    // --- ZUSAMMENBAU DES KONTEXTES FÜR DIE KI ---
+                    // Diese klaren Labels (REDNER:, DATUM:) helfen der KI, die IDs zu ignorieren
                     StringBuilder enrichedText = new StringBuilder();
                     enrichedText.append("--- PROTOKOLL-AUSZUG ---\n");
-                    enrichedText.append("Redner: ").append(speaker).append("\n");
-                    enrichedText.append("Fraktion: ").append(fraktion).append("\n");
-                    enrichedText.append("Datum der Sitzung: ").append(datum).append("\n");
-                    enrichedText.append("Gesprochener Text:\n\"").append(segment.text()).append("\"\n");
+                    enrichedText.append("REDNER: ").append(speaker).append("\n");
+                    enrichedText.append("FRAKTION: ").append(fraktion).append("\n");
+                    enrichedText.append("DATUM: ").append(datum).append("\n");
+                    enrichedText.append("TEXT: \"").append(segment.text()).append("\"\n");
 
                     if (!comments.isEmpty() && comments.get(0) != null) {
                         enrichedText.append("\nUnterbrechungen / Zwischenrufe aus dem Plenum während dieser Rede:\n");
@@ -107,7 +107,7 @@ public class GraphRAGRetriever implements ContentRetriever {
                     }
                     enrichedText.append("------------------------\n");
 
-                    // Add the highly enriched text to the list the LLM will read
+                    // Füge den angereicherten Text zur Liste für das LLM hinzu
                     enrichedContents.add(Content.from(enrichedText.toString()));
                 } else {
                     enrichedContents.add(Content.from(segment.text()));

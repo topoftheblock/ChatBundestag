@@ -49,7 +49,7 @@ public class RagService {
         List<Document> documents = new ArrayList<>();
 
         for (Rede rede : speeches) {
-            String text = rede.getText();
+            String text = rede.getVolltext();
             if (text == null || text.trim().isEmpty()) continue;
 
             Metadata metadata = new Metadata();
@@ -72,8 +72,10 @@ public class RagService {
      * Builds and returns the conversational agent using Graph RAG and Tools.
      */
     public ParliamentAssistant getAssistant() {
-        OpenAiChatModel chatModel = OpenAiChatModel.withApiKey(openAiKey);
-
+        OpenAiChatModel chatModel = OpenAiChatModel.builder()
+                .apiKey(openAiKey)
+                .modelName("gpt-4o-mini")
+                .build();
         // --- Using the Custom GraphRAG Retriever ---
         // Instead of the standard EmbeddingStoreContentRetriever, we use our own.
         GraphRAGRetriever retriever = new GraphRAGRetriever(

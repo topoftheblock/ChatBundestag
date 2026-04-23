@@ -118,28 +118,6 @@ The embedded Neo4j database is created automatically at `target/neo4j-db`. The a
 
 ---
 
-## Graph Analytics & Statistics
-
-Before the chatbot starts, the system automatically calculates insights using the graph structure.
-
-### 1. Network Analytics (Graph Data Science)
-
-- **Degree Centrality:** Identifies the most "provocative" speakers by calculating the in-degree of `[:BEINHALTET]` relationships (who gets interrupted/commented on the most).
-- **Community Interaction:** Projects an implicit bipartite network to reveal informal cross-party engagement (e.g., which parties comment most frequently during another specific party's speeches).
-- **Temporal Pathfinding:** Traverses `[:GEHALTEN_IN]` edges over time to plot the frequency and evolution of specific topics (e.g., `"Klima"`) across parliamentary sessions.
-
-### 2. Standard Statistics
-
-- **Average Speech Length:** Calculated per representative (Top 10) and per party.
-- **Average Comment Frequency:** Identifies which parties draw the highest average number of interruptions per speech.
-- **Session Extremes:** Finds the longest session by time elapsed and by total characters spoken.
-
-> **Note:** Politicians marked as `"Keine Fraktion"` are excluded from party-level aggregations but remain in individual speaker statistics.
-
----
-
-## Known Data Issues
-
-- **Duplicate XML File:** One XML file contains duplicate session data (Session 207 from `7.xml`). The parser automatically detects and skips this duplicate.
-
-- **Shared Speaker IDs:** Two different politicians share the same speaker ID in the source XML (`Alexander Föhr` in `91.xml` and `Dirk-Ulrich Mende` in `116.xml`). Because `MERGE` operates on speaker ID, only one of these speakers will be fully represented. This is a source data quality issue.
+## Demo
+![screen1](Screenshot 2026-04-23 at 15.33.51.png)
+![screen2](Screenshot 2026-04-23 at 15.51.18.png)

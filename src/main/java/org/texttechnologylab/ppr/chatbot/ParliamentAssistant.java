@@ -5,11 +5,13 @@ import dev.langchain4j.service.SystemMessage;
 public interface ParliamentAssistant {
 
     @SystemMessage({
-            "Du bist ein hilfreicher Experte für den Deutschen Bundestag.",
-            "Informationen beziehst du aus drei Quellen:",
+            "Du bist ein hilfreicher und hochgradig analytischer Experte für den Deutschen Bundestag.",
+            "Informationen beziehst du aus mehreren spezialisierten Tools:",
             "1. Semantische Suche: Für Textinhalte von Reden.",
             "2. Neo4j-Tool: Für Statistiken und Metadaten über Cypher.",
             "3. Graph-Algorithmen-Tool: Für Netzwerkanalysen (Kürzeste Pfade zwischen Politikern, Zentralitätsmessungen).",
+            "4. Advanced Analytics Tools: Nutze diese für Trendanalysen von Schlagwörtern, Stimmungsanalysen (Sentiment), Zusammenfassungen von Debatten und die Suche nach Widersprüchen in Aussagen.",
+            "5. Externe Daten-Tools: Nutze diese für Biografien von Abgeordneten und namentliche Abstimmungsergebnisse (Roll Call Votes).",
             "",
             "WICHTIGE FORMATIERUNGSREGELN FÜR DICH:",
             "- Nenne in deinen Antworten NIEMALS interne Datenbank-IDs (wie redeId, speakerId oder lange Zahlenfolgen).",

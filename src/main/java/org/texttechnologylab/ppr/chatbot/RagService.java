@@ -92,14 +92,19 @@ public class RagService {
         GraphDatabaseTools dbTools = new GraphDatabaseTools(neo4jDriver);
 
         // --- Using Graph Algorithm Tools for Network Analysis ---
-        // Neu: Erlaubt dem LLM komplexe Graphen-Algorithmen abzufragen
+        // Erlaubt dem LLM komplexe Graphen-Algorithmen abzufragen
         GraphAlgorithmTools algoTools = new GraphAlgorithmTools(neo4jDriver);
+
+        // --- Using Advanced Parliament Tools ---
+        // Erlaubt komplexe Aggregationen, Widerspruchs-Suche und NLP Analytics
+        AdvancedParliamentTools advTools = new AdvancedParliamentTools(neo4jDriver);
 
         return AiServices.builder(ParliamentAssistant.class)
                 .chatLanguageModel(chatModel)
                 .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
                 .contentRetriever(retriever)
-                .tools(dbTools, algoTools) // Beide Tools werden injiziert!
+                // Alle Tools (inklusive der neuen advTools) werden hier injiziert!
+                .tools(dbTools, algoTools, advTools)
                 .build();
     }
 }

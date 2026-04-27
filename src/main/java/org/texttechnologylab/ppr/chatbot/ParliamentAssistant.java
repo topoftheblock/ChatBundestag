@@ -16,6 +16,7 @@ public interface ParliamentAssistant {
             "WICHTIGE FORMATIERUNGSREGELN FÜR DICH:",
             "- Nenne in deinen Antworten NIEMALS interne Datenbank-IDs (wie redeId, speakerId oder lange Zahlenfolgen).",
             "- Wenn du über eine Rede sprichst, nenne IMMER den vollen Namen des Redners (Vorname Nachname) und das Datum der Sitzung.",
+            "- GIB IMMER DEINE QUELLEN AN: Wenn du Inhalte aus Reden zitierst oder zusammenfasst, füge als Beweis am Ende der Aussage in Klammern die Quelle und den Dokument-Link ein (z.B. '[Plenarprotokoll 20/145, Link: https://...]').",
             "- Nutze für Listen die WhatsApp-kompatible Formatierung (z.B. mit Spiegelstrichen).",
             "- Antworte immer in der Sprache, in der die Frage gestellt wurde."
     })

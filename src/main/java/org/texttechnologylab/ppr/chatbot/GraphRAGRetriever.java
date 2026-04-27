@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * Custom LangChain4j Retriever that combines Vector Similarity Search
- * with Graph Database Traversals to build rich context.
+ * with Graph Database Traversals to build rich context, including exact citations.
  */
 public class GraphRAGRetriever implements ContentRetriever {
 
@@ -71,12 +71,14 @@ public class GraphRAGRetriever implements ContentRetriever {
                 }
 
                 // --- CYPHER GRAPH TRAVERSAL ---
-                // Hier holen wir Datum, Klarnamen und Fraktion aus dem Graphen
+                // Hier holen wir Datum, Klarnamen, Fraktion UND die Metadaten für die Quelle (WP, Sitzung)
                 String cypher = "MATCH (r:Rede {id: $redeId}) " +
                         "OPTIONAL MATCH (r)-[:GEHALTEN_IN]->(s:Sitzung) " +
                         "OPTIONAL MATCH (redner:Redner)-[:HAT_GESPROCHEN]->(r) " +
                         "OPTIONAL MATCH (r)-[:BEINHALTET]->(k:Kommentar) " +
                         "RETURN s.datum AS datum, " +
+                        "       s.wahlperiode AS wahlperiode, " +
+                        "       s.sitzungNr AS sitzungNr, " +
                         "       redner.vorname + ' ' + redner.nachname AS speakerName, " +
                         "       redner.fraktion AS fraktion, " +
                         "       collect(k.text) AS kommentare";
@@ -88,15 +90,29 @@ public class GraphRAGRetriever implements ContentRetriever {
                     String datum = record.get("datum").isNull() ? "Unbekanntes Datum" : record.get("datum").asLocalDate().toString();
                     String speaker = record.get("speakerName").isNull() ? "Unbekannter Redner" : record.get("speakerName").asString();
                     String fraktion = record.get("fraktion").isNull() ? "Keine Fraktion" : record.get("fraktion").asString();
+
+                    // Neue Variablen für die Quellenangabe
+                    String wp = record.get("wahlperiode").isNull() ? "?" : record.get("wahlperiode").asString();
+                    String nr = record.get("sitzungNr").isNull() ? "?" : record.get("sitzungNr").asString();
                     List<Object> comments = record.get("kommentare").asList();
 
+                    // Generiere direkten Link zum originalen Bundestags-PDF
+                    String pdfLink = "";
+                    try {
+                        // Das Format des Bundestags: z.B. btp/20/20015.pdf für WP 20, Sitzung 15
+                        pdfLink = String.format("https://dserver.bundestag.de/btp/%s/%s%03d.pdf", wp, wp, Integer.parseInt(nr));
+                    } catch (NumberFormatException e) {
+                        pdfLink = "Link nicht verfügbar";
+                    }
+
                     // --- ZUSAMMENBAU DES KONTEXTES FÜR DIE KI ---
-                    // Diese klaren Labels (REDNER:, DATUM:) helfen der KI, die IDs zu ignorieren
                     StringBuilder enrichedText = new StringBuilder();
                     enrichedText.append("--- PROTOKOLL-AUSZUG ---\n");
                     enrichedText.append("REDNER: ").append(speaker).append("\n");
                     enrichedText.append("FRAKTION: ").append(fraktion).append("\n");
                     enrichedText.append("DATUM: ").append(datum).append("\n");
+                    enrichedText.append("QUELLE: Plenarprotokoll ").append(wp).append("/").append(nr).append("\n");
+                    enrichedText.append("DOKUMENT-LINK: ").append(pdfLink).append("\n");
                     enrichedText.append("TEXT: \"").append(segment.text()).append("\"\n");
 
                     if (!comments.isEmpty() && comments.get(0) != null) {

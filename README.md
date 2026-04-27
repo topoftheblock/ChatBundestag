@@ -244,11 +244,10 @@ The graph is composed of the following structure:
 This screenshot showcases the user-friendly web interface where users can interact directly with the Parliament Assistant. Users can ask natural language questions regarding politicians, specific speeches, or debate topics. The assistant processes these queries and returns contextually accurate answers based on the parsed parliamentary protocols.
 
 ![screen2](./images/Screenshot%202026-04-23%20at%2015.51.18.png)
-![screen3](./images/Screenshot 2026-04-27 at 09.33.00.png)
-![screen4](./images/Screenshot 2026-04-27 at 09.33.44.png)
-![screen5](./images/Screenshot 2026-04-27 at 09.35.02.png)
-![screen6](./images/Screenshot 2026-04-27 at 09.35.40.png)
-
+![screen3](./images/Screenshot%202026-04-27%20at%2009.33.00.png)
+![screen4](./images/Screenshot%202026-04-27%20at%2009.33.44.png)
+![screen5](./images/Screenshot%202026-04-27%20at%2009.35.02.png)
+![screen6](./images/Screenshot%202026-04-27%20at%2009.35.40.png)
 
 Here is a look under the hood at the Neo4j graph database visualization. The parsed XML data is structured into interconnected nodes such as `Redner` (Speakers), `Rede` (Speeches), and `Sitzung` (Sessions). These are linked by structural relationships (e.g., `HAT_GESPROCHEN`, `GEHALTEN_IN`), allowing the AI to traverse complex connections and retrieve highly relevant context that standard text searches might miss.
 

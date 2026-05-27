@@ -1,6 +1,6 @@
 # Parliamentary Protocol Parser & Advanced GraphRAG Assistant
 
-A Java application for parsing XML protocols from the German Bundestag, loading them into an embedded Neo4j graph database, and enabling highly contextual, natural-language querying via an advanced **GraphRAG (Retrieval-Augmented Generation)** pipeline.
+A Java application for parsing XML protocols from the German Bundestag, loading them into an embedded Neo4j graph database, and enabling highly contextual, natural-language querying via an advanced **GraphRAG** pipeline.
 
 ---
 
@@ -28,7 +28,7 @@ A Java application for parsing XML protocols from the German Bundestag, loading 
 
 This project processes 214 XML protocol files from German Bundestag parliamentary sessions. It extracts structured information about sessions, speakers, speeches, and interjections, and loads everything into an embedded Neo4j graph database.
 
-Beyond standard data ingestion, this application serves as an **Advanced AI GraphRAG system**. By combining OpenAI's vector embeddings with Neo4j's relational graph traversals and a rich suite of specialized analytical tools, the AI assistant doesn't just read isolated text snippets — it understands the political context, the timeline, the speaker's party affiliation, voting records, cross-party dynamics, and the real-time reactions (heckling/comments) from the parliament floor.
+Beyond standard data ingestion, this application serves as an **Advanced AI GraphRAG system**. By combining OpenAI's vector embeddings with Neo4j's relational graph traversals and a rich suite of specialized analytical tools, the AI assistant doesn't just read isolated text snippets — it understands the political context, the timeline, the speaker's party affiliation, voting records, cross-party dynamics, and the real-time reactions - heckling/comments - from the parliament floor.
 
 Example queries you can ask:
 - *"Welche Position vertritt Olaf Scholz zum Thema Klimaschutz?"*
@@ -86,14 +86,14 @@ A rich suite of purpose-built analytical functions for deep political analysis, 
 
 1. **Vector Ingestion** — Speeches are embedded and stored in Neo4j with their `redeId` as metadata.
 
-2. **Semantic Search** — On a user query (e.g., *"How did the CDU/CSU position themselves on economic policy before 2025?"*), the system embeds the question and fetches the top 3 most semantically relevant speeches.
+2. **Semantic Search** — On a user query, e.g., *"How did the CDU/CSU position themselves on economic policy before 2025?"* , the system embeds the question and fetches the top 3 most semantically relevant speeches.
 
 3. **Graph Traversal (The Secret Sauce)** — A custom `GraphRAGRetriever` uses the matched `redeId` to run a native Cypher traversal across the surrounding graph:
     - `(r:Rede)-[:GEHALTEN_IN]->(s:Sitzung)` → Extracts the exact **Date**
     - `(redner:Redner)-[:HAT_GESPROCHEN]->(r:Rede)` → Extracts **Speaker Name** and **Party** (`Fraktion`)
     - `(r:Rede)-[:BEINHALTET]->(k:Kommentar)` → Extracts any **Interruptions/Heckling** during that speech
 
-4. **Tool Augmentation** — If the query requires deeper analysis (e.g., contradiction detection, sentiment scoring, shortest path), the agent invokes the appropriate tool from `GraphAlgorithmTools` or `AdvancedParliamentTools`.
+4. **Tool Augmentation** — If the query requires deeper analysis, e.g., contradiction detection, sentiment scoring, shortest path, the agent invokes the appropriate tool from `GraphAlgorithmTools` or `AdvancedParliamentTools`.
 
 5. **Context Assembly & Generation** — The retrieved text alongside its rich graph context and tool outputs is formatted into a "Protocol Excerpt" and sent to the LLM. The resulting answer is highly accurate, context-aware, and resistant to typical RAG hallucinations.
 
